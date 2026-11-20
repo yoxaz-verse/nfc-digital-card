@@ -5,9 +5,11 @@ import { jsPDF } from 'jspdf'
 import CardCanvas from '../components/CardCanvas.vue'
 import FieldPanel from '../components/FieldPanel.vue'
 import ThreePreview from '../components/ThreePreview.vue'
+import ElementInspector from '../components/ElementInspector.vue'
 import { useProjectStore } from '../stores/project'
-import type { CanvasSnapshot, CardFields, DesignSettings, Face, QrSettings } from '../types'
+import type { CanvasSnapshot, CardFields, DesignSettings, ElementSelection, Face, QrSettings } from '../types'
 import { getTemplate } from '../templates'
+import { loadFont } from '../fonts'
 
 const store = useProjectStore()
 const activeFace = ref<Face>('front')
@@ -16,13 +18,13 @@ const frontCanvas = ref<InstanceType<typeof CardCanvas>>()
 const backCanvas = ref<InstanceType<typeof CardCanvas>>()
 const previewRef = ref<InstanceType<typeof ThreePreview>>()
 const textures = ref<Partial<Record<Face, string>>>({})
-const selection = ref(false)
+const selection = ref<ElementSelection | null>(null)
 const ready = computed(() => store.ready)
 const activeCanvas = computed(() => activeFace.value === 'front' ? frontCanvas.value : backCanvas.value)
 
 onMounted(() => store.restore())
 function updateField(key: keyof CardFields, value: string) { store.project.fields[key] = value; void store.save() }
-function updateDesign(key: keyof DesignSettings, value: string) { (store.project.design[key] as string) = value; void store.save() }
+async function updateDesign(key: keyof DesignSettings, value: string) { if (key === 'font') await loadFont(value); (store.project.design[key] as string) = value; void store.save() }
 function canvasChanged(face: Face, snapshot: CanvasSnapshot, dataUrl: string) { textures.value[face] = dataUrl; store.updateFace(face, snapshot) }
 async function switchFace(face: Face) { activeFace.value = face; await nextTick(); previewRef.value?.face(face) }
 async function addLogo(file: File) {
@@ -36,6 +38,12 @@ async function applyPalette(index: number) {
 }
 async function updateQr(key: keyof QrSettings, value: string | boolean) {
   ;(store.project.qr[key] as string | boolean) = value; await store.save(); await frontCanvas.value?.refreshQr(); await backCanvas.value?.refreshQr()
+}
+function inspectorAction(action: string) {
+  if (action === 'duplicate') void activeCanvas.value?.duplicateSelected()
+  else if (action === 'lock') activeCanvas.value?.toggleLock()
+  else if (action === 'delete') activeCanvas.value?.removeSelected()
+  else activeCanvas.value?.arrange(action as 'forward' | 'backward' | 'front' | 'back')
 }
 function download(data: string, name: string) { const a = document.createElement('a'); a.href = data; a.download = name; a.click() }
 function exportPng() { download(activeCanvas.value?.exportData(1) ?? '', `business-card-${activeFace.value}.png`) }
@@ -55,7 +63,7 @@ async function reset() { if (!confirm('Start over? This will replace your locall
       <div class="project-title"><input v-model="store.project.name" @change="store.save" /><span class="save-state">● {{ store.saveState }}</span></div>
       <div class="top-actions"><button class="ghost" @click="reset">Start over</button><button class="primary" @click="exportPdf">Export PDF</button></div>
     </header>
-    <main v-if="ready" class="workspace" :data-mobile-tab="mobileTab">
+    <main v-if="ready" class="workspace" :class="{ 'inspector-open': selection }" :data-mobile-tab="mobileTab">
       <FieldPanel class="details-pane" :fields="store.project.fields" :design="store.project.design" :active-face="activeFace" :template-id="store.project.templateId" :palette-index="store.project.paletteIndex" :qr="store.project.qr" @change="updateField" @design="updateDesign" @logo="addLogo" @palette="applyPalette" @qr="updateQr" />
       <section class="editor-area">
         <div class="editor-topline">
@@ -71,10 +79,11 @@ async function reset() { if (!confirm('Start over? This will replace your locall
         </div>
         <div class="toolbar">
           <button @click="activeCanvas?.undo()">↶ <span>Undo</span></button><button @click="activeCanvas?.redo()">↷ <span>Redo</span></button><i></i>
-          <button @click="activeCanvas?.addText()">T <span>Add text</span></button><button :disabled="!selection" class="danger" @click="activeCanvas?.removeSelected()">⌫ <span>Delete</span></button><i></i>
+          <button @click="activeCanvas?.addText()">T <span>Add text</span></button><button @click="activeCanvas?.addShape('rectangle')">□ <span>Rectangle</span></button><button @click="activeCanvas?.addShape('circle')">○ <span>Circle</span></button><button @click="activeCanvas?.addShape('line')">╱ <span>Line</span></button><button :disabled="!selection" class="danger" @click="activeCanvas?.removeSelected()">⌫ <span>Delete</span></button><i></i>
           <button @click="exportPng">⇩ <span>Export {{ activeFace }} PNG</span></button>
         </div>
       </section>
+      <ElementInspector v-if="selection" :selection="selection" @patch="activeCanvas?.updateSelected($event)" @action="inspectorAction" @close="selection = null" />
       <nav class="mobile-nav" aria-label="Editor sections">
         <button :class="{ active: mobileTab === 'details' }" @click="mobileTab = 'details'"><b>☷</b><span>Details</span></button>
         <button :class="{ active: mobileTab === 'design' }" @click="mobileTab = 'design'"><b>✦</b><span>Design</span></button>

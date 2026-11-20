@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { CardFields, DesignSettings, QrSettings } from '../types'
 import { getTemplate } from '../templates'
+import FontPicker from './FontPicker.vue'
 
 const props = defineProps<{ fields: CardFields; design: DesignSettings; activeFace: 'front' | 'back'; templateId: string; paletteIndex: number; qr: QrSettings }>()
 const emit = defineEmits<{ change: [key: keyof CardFields, value: string]; design: [key: keyof DesignSettings, value: string]; logo: [file: File]; palette: [index: number]; qr: [key: keyof QrSettings, value: string | boolean] }>()
@@ -43,9 +44,7 @@ function upload(event: Event) {
       </label>
       <label>
         <span>Font</span>
-        <select :value="design.font" @change="emit('design', 'font', ($event.target as HTMLSelectElement).value)">
-          <option>Arial</option><option>Georgia</option><option>Courier New</option>
-        </select>
+        <FontPicker :model-value="design.font" @update:model-value="emit('design', 'font', $event)" />
       </label>
       <label>
         <span>{{ activeFace === 'front' ? 'Front' : 'Back' }} background</span>

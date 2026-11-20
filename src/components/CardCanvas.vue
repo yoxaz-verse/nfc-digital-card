@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, watch } from 'vue'
-import { Canvas, FabricImage, FabricText, Rect, type FabricObject } from 'fabric'
+import { Canvas, Circle, FabricImage, FabricText, Line, Rect, Shadow, type FabricObject } from 'fabric'
 import QRCode from 'qrcode'
-import type { CardFields, CanvasSnapshot, Face, DesignSettings, BrandAssets, QrSettings } from '../types'
+import type { CardFields, CanvasSnapshot, Face, DesignSettings, BrandAssets, QrSettings, ElementKind, ElementSelection } from '../types'
 import { CARD } from '../types'
 import { getTemplate } from '../templates'
 
 const props = defineProps<{ face: Face; fields: CardFields; design: DesignSettings; templateId: string; assets: BrandAssets; qr: QrSettings; snapshot?: CanvasSnapshot }>()
-const emit = defineEmits<{ change: [snapshot: CanvasSnapshot, dataUrl: string]; selection: [active: boolean] }>()
+const emit = defineEmits<{ change: [snapshot: CanvasSnapshot, dataUrl: string]; selection: [selection: ElementSelection | null] }>()
 let canvas: Canvas | undefined
 let isLoading = false
 let history: string[] = []
@@ -16,6 +16,29 @@ let timer: number | undefined
 
 const ids: Record<string, string> = {}
 const find = (id: string) => canvas?.getObjects().find((o) => (o as FabricObject & { data?: { id?: string } }).data?.id === id)
+const templateIds = new Set(['name', 'title', 'company', 'phone', 'email', 'website', 'address', 'monogram', 'logo', 'qr', 'accent', 'accent-line'])
+
+function describe(object?: FabricObject): ElementSelection | null {
+  if (!object) return null
+  const data = (object as FabricObject & { data?: { id?: string; locked?: boolean } }).data ?? {}
+  let kind: ElementKind = 'other'
+  if (object instanceof FabricText) kind = 'text'
+  else if (object instanceof FabricImage) kind = 'image'
+  else if (object instanceof Circle) kind = 'circle'
+  else if (object instanceof Line) kind = 'line'
+  else if (object instanceof Rect) kind = 'rectangle'
+  const shadow = object.shadow instanceof Shadow ? object.shadow : undefined
+  const textObject = object instanceof FabricText ? object : undefined
+  return {
+    kind, id: data.id, templateBound: templateIds.has(data.id ?? ''), locked: Boolean(data.locked),
+    left: Math.round(object.left), top: Math.round(object.top), width: Math.round(object.getScaledWidth()), height: Math.round(object.getScaledHeight()), angle: Math.round(object.angle), opacity: object.opacity,
+    fill: typeof object.fill === 'string' ? object.fill : undefined, stroke: typeof object.stroke === 'string' ? object.stroke : undefined, strokeWidth: object.strokeWidth, rx: object instanceof Rect ? object.rx : undefined,
+    fontFamily: textObject?.fontFamily, fontSize: textObject?.fontSize, fontWeight: textObject?.fontWeight, fontStyle: textObject?.fontStyle, underline: textObject?.underline, textAlign: textObject?.textAlign, lineHeight: textObject?.lineHeight, charSpacing: textObject?.charSpacing,
+    shadowColor: shadow?.color, shadowBlur: shadow?.blur, shadowOffsetX: shadow?.offsetX, shadowOffsetY: shadow?.offsetY,
+  }
+}
+
+function emitSelection() { emit('selection', describe(canvas?.getActiveObject())) }
 
 function text(value: string, options: Record<string, unknown>, id: string) {
   const item = new FabricText(value, { fontFamily: props.design.font, ...options })
@@ -139,12 +162,59 @@ async function redo() { if (historyIndex < history.length - 1) { historyIndex++;
 function removeSelected() {
   const selected = canvas?.getActiveObjects() ?? []
   selected.forEach((object) => canvas?.remove(object))
-  canvas?.discardActiveObject(); canvas?.renderAll(); changed(true)
+  canvas?.discardActiveObject(); canvas?.renderAll(); emitSelection(); changed(true)
 }
 
 function addText() {
-  canvas?.add(text('New text', { left: 390, top: 260, fontSize: 40, fill: props.face === 'front' ? '#171717' : '#ffffff' }, crypto.randomUUID()))
-  canvas?.renderAll(); changed(true)
+  const item = text('New text', { left: 390, top: 260, fontSize: 40, fill: props.face === 'front' ? '#171717' : '#ffffff' }, crypto.randomUUID())
+  canvas?.add(item); canvas?.setActiveObject(item); canvas?.renderAll(); emitSelection(); changed(true)
+}
+
+function addShape(kind: 'rectangle' | 'circle' | 'line') {
+  if (!canvas) return
+  const common = { left: 365, top: 230, fill: props.fields.accent, stroke: 'transparent', strokeWidth: 0, opacity: 1, data: { id: crypto.randomUUID() } }
+  const object = kind === 'rectangle' ? new Rect({ ...common, width: 320, height: 150, rx: 10 }) : kind === 'circle' ? new Circle({ ...common, radius: 90 }) : new Line([250, 300, 800, 300], { ...common, fill: undefined, stroke: props.fields.accent, strokeWidth: 8 })
+  canvas.add(object); canvas.setActiveObject(object); canvas.renderAll(); emitSelection(); changed(true)
+}
+
+function updateSelected(patch: Record<string, unknown>) {
+  const object = canvas?.getActiveObject()
+  if (!canvas || !object) return
+  const next = { ...patch }
+  if (typeof next.width === 'number' && object.width) { object.scaleX = next.width / object.width; delete next.width }
+  if (typeof next.height === 'number' && object.height) { object.scaleY = next.height / object.height; delete next.height }
+  if (['shadowColor', 'shadowBlur', 'shadowOffsetX', 'shadowOffsetY'].some((key) => key in next)) {
+    const old = object.shadow instanceof Shadow ? object.shadow : new Shadow({ color: '#00000055', blur: 0, offsetX: 0, offsetY: 0 })
+    object.set('shadow', new Shadow({ color: String(next.shadowColor ?? old.color), blur: Number(next.shadowBlur ?? old.blur), offsetX: Number(next.shadowOffsetX ?? old.offsetX), offsetY: Number(next.shadowOffsetY ?? old.offsetY) }))
+    delete next.shadowColor; delete next.shadowBlur; delete next.shadowOffsetX; delete next.shadowOffsetY
+  }
+  object.set(next as never); object.setCoords(); canvas.renderAll(); emitSelection(); changed(true)
+}
+
+async function duplicateSelected() {
+  const object = canvas?.getActiveObject()
+  if (!canvas || !object) return
+  const clone = await object.clone(['data'])
+  clone.set({ left: object.left + 24, top: object.top + 24, data: { id: crypto.randomUUID() } } as never)
+  canvas.add(clone); canvas.setActiveObject(clone); canvas.renderAll(); emitSelection(); changed(true)
+}
+
+function toggleLock() {
+  const object = canvas?.getActiveObject() as (FabricObject & { data?: { id?: string; locked?: boolean } }) | undefined
+  if (!canvas || !object) return
+  const locked = !object.data?.locked
+  object.set({ lockMovementX: locked, lockMovementY: locked, lockScalingX: locked, lockScalingY: locked, lockRotation: locked, hasControls: !locked, data: { ...(object.data ?? {}), locked } } as never)
+  canvas.renderAll(); emitSelection(); changed(true)
+}
+
+function arrange(action: 'forward' | 'backward' | 'front' | 'back') {
+  const object = canvas?.getActiveObject()
+  if (!canvas || !object) return
+  if (action === 'forward') canvas.bringObjectForward(object)
+  else if (action === 'backward') canvas.sendObjectBackwards(object)
+  else if (action === 'front') canvas.bringObjectToFront(object)
+  else canvas.sendObjectToBack(object)
+  canvas.renderAll(); emitSelection(); changed(true)
 }
 
 async function addImage(file: File) {
@@ -154,7 +224,7 @@ async function addImage(file: File) {
     const img = await FabricImage.fromURL(url)
     img.scaleToWidth(220)
     img.set({ left: 730, top: 70, data: { id: crypto.randomUUID() } } as never)
-    canvas?.add(img); canvas?.setActiveObject(img); canvas?.renderAll(); changed(true)
+    canvas?.add(img); canvas?.setActiveObject(img); canvas?.renderAll(); emitSelection(); changed(true)
   } finally { URL.revokeObjectURL(url) }
 }
 
@@ -187,11 +257,12 @@ watch(() => props.design, (design) => {
 
 onMounted(async () => {
   canvas = new Canvas(`canvas-${props.face}`, { width: CARD.width, height: CARD.height, preserveObjectStacking: true, selectionColor: 'rgba(217,119,69,.12)' })
-  canvas.on('object:modified', () => changed())
+  canvas.on('object:modified', () => { emitSelection(); changed() })
   canvas.on('object:added', () => changed())
   canvas.on('object:removed', () => changed())
-  canvas.on('selection:created', () => emit('selection', true))
-  canvas.on('selection:cleared', () => emit('selection', false))
+  canvas.on('selection:created', emitSelection)
+  canvas.on('selection:updated', emitSelection)
+  canvas.on('selection:cleared', () => emit('selection', null))
   if (props.snapshot) {
     await load(JSON.stringify(props.snapshot))
     history = [JSON.stringify(props.snapshot)]; historyIndex = 0
@@ -199,7 +270,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => { window.clearTimeout(timer); canvas?.dispose() })
-defineExpose({ undo, redo, removeSelected, addText, addImage, exportData, rebuild: buildTemplate, refreshQr })
+defineExpose({ undo, redo, removeSelected, addText, addShape, addImage, updateSelected, duplicateSelected, toggleLock, arrange, exportData, rebuild: buildTemplate, refreshQr })
 </script>
 
 <template>

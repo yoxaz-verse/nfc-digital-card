@@ -13,11 +13,43 @@ export interface CardFields {
 }
 
 export interface DesignSettings {
-  font: 'Arial' | 'Georgia' | 'Courier New'
+  font: string
   frontBackground: string
   backBackground: string
   layout: 'classic' | 'minimal' | 'bold'
 }
+
+export type ElementKind = 'text' | 'image' | 'rectangle' | 'circle' | 'line' | 'other'
+export interface ElementSelection {
+  kind: ElementKind
+  id?: string
+  templateBound: boolean
+  locked: boolean
+  left: number
+  top: number
+  width: number
+  height: number
+  angle: number
+  opacity: number
+  fill?: string
+  stroke?: string
+  strokeWidth?: number
+  rx?: number
+  fontFamily?: string
+  fontSize?: number
+  fontWeight?: string | number
+  fontStyle?: string
+  underline?: boolean
+  textAlign?: string
+  lineHeight?: number
+  charSpacing?: number
+  shadowColor?: string
+  shadowBlur?: number
+  shadowOffsetX?: number
+  shadowOffsetY?: number
+}
+
+export interface FontDefinition { family: string; category: 'Sans serif' | 'Serif' | 'Display' | 'Handwriting' | 'Monospace'; system?: boolean }
 
 export interface TemplatePalette { name: string; front: string; back: string; accent: string; foreground: string }
 export interface TemplateDefinition {
