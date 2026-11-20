@@ -1,3 +1,14 @@
+export type ProfileGoal = 'creator' | 'business' | 'personal'
+export type PlatformType = 'instagram'|'whatsapp'|'tiktok'|'youtube'|'website'|'spotify'|'threads'|'facebook'|'x'|'soundcloud'|'snapchat'|'pinterest'|'patreon'|'twitch'|'applemusic'|'custom'
+export type HeaderLayout = 'classic'|'hero'|'banner'|'cutout'|'shape'
+export type WallpaperType = 'solid'|'gradient'|'image'
+export type ButtonStyle = 'filled'|'outline'|'soft'
+export type ButtonShape = 'square'|'rounded'|'pill'
+export interface ProfileLink { id:string; platform:PlatformType; label:string; url:string; enabled:boolean; order:number }
+export interface ProfileTheme { headerLayout:HeaderLayout; wallpaperType:WallpaperType; background:string; backgroundEnd:string; wallpaperImage?:string; textColor:string; accent:string; font:string; buttonColor:string; buttonTextColor:string; buttonStyle:ButtonStyle; buttonShape:ButtonShape; buttonShadow:boolean }
+export interface Profile { id:string; ownerId?:string; slug:string; goal:ProfileGoal; displayName:string; title:string; bio:string; imageAlt:string; imageUrl?:string; links:ProfileLink[]; theme:ProfileTheme; published:boolean; updatedAt:string; publishedAt?:string; previousSlugs:string[] }
+export interface OnboardingState { step:number; selectedPlatforms:PlatformType[]; complete:boolean }
+
 export type Face = 'front' | 'back'
 export type TemplateCategory = 'Professional' | 'Minimal' | 'Bold' | 'Luxury' | 'Creative' | 'Tech' | 'Dark' | 'Gradient' | 'Photo' | 'QR'
 

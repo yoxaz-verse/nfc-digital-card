@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.2",
     "fabric": "^6.7.1",
     "idb-keyval": "^6.2.2",
     "jspdf": "^3.0.1",
