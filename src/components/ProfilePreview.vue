@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { computed } from 'vue'; import type { Profile } from '../types'; import { platformById } from '../platforms'
-const props=defineProps<{profile:Profile; interactive?:boolean}>()
+import { computed,ref } from 'vue'; import type { Profile } from '../types'; import { platformById } from '../platforms'; import { isLinkActive } from '../profile-utils'; import TurnstileWidget from './TurnstileWidget.vue'; import PlatformIcon from './PlatformIcon.vue'
+const props=defineProps<{profile:Profile; interactive?:boolean;submitContact?:(value:{name:string;email:string;message:string;website:string;turnstileToken:string})=>Promise<unknown>}>()
+const emit=defineEmits<{link:[id:string]}>()
 const bg=computed(()=>{const t=props.profile.theme;if(t.wallpaperType==='image'&&t.wallpaperImage)return `url(${t.wallpaperImage}) center/cover`;if(t.wallpaperType==='gradient')return `linear-gradient(145deg,${t.background},${t.backgroundEnd})`;return t.background})
+const visibleLinks=computed(()=>props.profile.links.filter(l=>isLinkActive(l)))
+const showForm=ref(false),sent=ref(false),sending=ref(false),formError=ref(''),turnstileToken=ref(''),form=ref({name:'',email:'',message:'',website:''})
+async function submit(){if(!form.value.name||!form.value.email||!form.value.message||!turnstileToken.value)return;sending.value=true;formError.value='';try{if(props.submitContact)await props.submitContact({...form.value,turnstileToken:turnstileToken.value});sent.value=true}catch(e:any){formError.value=e.message||'Unable to send your message.'}finally{sending.value=false}}
 </script>
 <template><div class="profile-page" :style="{background:bg,color:profile.theme.textColor,fontFamily:profile.theme.font}">
   <div class="profile-head" :class="`head-${profile.theme.headerLayout}`">
     <div v-if="profile.imageUrl" class="avatar"><img :src="profile.imageUrl" :alt="profile.imageAlt"></div><div v-else class="avatar avatar-empty">{{profile.displayName.slice(0,1)}}</div>
-    <h1>{{profile.displayName}}</h1><h2>{{profile.title}}</h2><p>{{profile.bio}}</p>
+    <h1>{{profile.displayName}}</h1><h2>{{profile.title}}</h2><p>{{profile.bio}}</p><div class="contact-chips"><a v-if="profile.email" :href="interactive?`mailto:${profile.email}`:undefined">Email</a><a v-if="profile.phone" :href="interactive?`tel:${profile.phone}`:undefined">Call</a><span v-if="profile.location">{{profile.location}}</span></div>
   </div>
-  <div class="profile-links"><a v-for="link in profile.links.filter(l=>l.enabled&&l.url)" :key="link.id" :href="interactive?link.url:undefined" :target="interactive?'_blank':undefined" rel="noopener" :class="[`btn-${profile.theme.buttonShape}`,`style-${profile.theme.buttonStyle}`,{shadow:profile.theme.buttonShadow}]" :style="{'--button':profile.theme.buttonColor,'--buttonText':profile.theme.buttonTextColor}"><i :style="{background:platformById(link.platform).color}">{{platformById(link.platform).icon}}</i><span>{{link.label}}</span><b>↗</b></a></div>
+  <div class="profile-links"><a v-for="link in visibleLinks" :key="link.id" :href="interactive?link.url:undefined" :target="interactive?'_blank':undefined" rel="noopener" @click="emit('link',link.id)" :class="[`btn-${profile.theme.buttonShape}`,`style-${profile.theme.buttonStyle}`,{shadow:profile.theme.buttonShadow,featured:link.featured}]" :style="{'--button':profile.theme.buttonColor,'--buttonText':profile.theme.buttonTextColor}"><img v-if="link.thumbnailUrl" :src="link.thumbnailUrl" alt=""><i v-else :style="{background:platformById(link.platform).color}"><PlatformIcon :platform="link.platform"/></i><span>{{link.label}}<small v-if="link.featured">Featured</small></span><b>↗</b></a></div>
+  <div v-if="profile.contact.enabled" class="contact-block"><button v-if="!showForm&&!sent" @click="showForm=true">{{profile.contact.heading}}</button><div v-else-if="sent" class="contact-success">Thanks — your message was sent.</div><form v-else @submit.prevent="submit"><input v-model="form.website" class="honey" tabindex="-1" autocomplete="off"><input v-model="form.name" required placeholder="Your name"><input v-model="form.email" required type="email" placeholder="Email"><textarea v-model="form.message" required placeholder="How can I help?"></textarea><TurnstileWidget @token="turnstileToken=$event"/><p v-if="formError" class="contact-error">{{formError}}</p><button :disabled="!turnstileToken||sending">{{sending?'Sending…':'Send message'}}</button></form></div>
   <footer>Made with <strong>LinkCard</strong></footer>
 </div></template>

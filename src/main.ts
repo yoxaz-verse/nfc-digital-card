@@ -5,20 +5,20 @@ import './styles.css'
 import './profile.css'
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from './views/HomeView.vue'
-import OnboardingView from './views/OnboardingView.vue'
-import ProfileEditorView from './views/ProfileEditorView.vue'
-import PublicProfileView from './views/PublicProfileView.vue'
-import AuthCallbackView from './views/AuthCallbackView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', component: HomeView },
-    { path: '/create', component: OnboardingView },
-    { path: '/dashboard', component: ProfileEditorView },
-    { path: '/auth/callback', component: AuthCallbackView },
-    { path: '/u/:slug', component: PublicProfileView },
-    { path: '/templates', redirect: '/create' },
+    { path: '/create', redirect: '/cards/new' },
+    { path: '/dashboard', component: () => import('./views/WorkspaceView.vue') },
+    { path: '/cards/new', component: () => import('./views/TemplatesView.vue') },
+    { path: '/cards/:id/edit', component: () => import('./views/EditorView.vue') },
+    { path: '/profiles/new', component: () => import('./views/OnboardingView.vue') },
+    { path: '/profiles/:id/edit', component: () => import('./views/ProfileEditorView.vue') },
+    { path: '/auth/callback', component: () => import('./views/AuthCallbackView.vue') },
+    { path: '/u/:slug', component: () => import('./views/PublicProfileView.vue') },
+    { path: '/templates', redirect: '/cards/new' },
     { path: '/editor', redirect: '/dashboard' },
   ],
   scrollBehavior: () => ({ top: 0 }),

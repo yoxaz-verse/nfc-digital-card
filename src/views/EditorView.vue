@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { jsPDF } from 'jspdf'
 import CardCanvas from '../components/CardCanvas.vue'
 import FieldPanel from '../components/FieldPanel.vue'
@@ -10,8 +10,12 @@ import { useProjectStore } from '../stores/project'
 import type { CanvasSnapshot, CardFields, DesignSettings, ElementSelection, Face, QrSettings } from '../types'
 import { getTemplate } from '../templates'
 import { loadFont } from '../fonts'
+import { useProfileStore } from '../stores/profile'
+import { destinationWarning } from '../card-utils'
 
 const store = useProjectStore()
+const profileStore = useProfileStore()
+const route = useRoute(), router = useRouter()
 const activeFace = ref<Face>('front')
 const mobileTab = ref<'details' | 'design' | 'preview'>('details')
 const frontCanvas = ref<InstanceType<typeof CardCanvas>>()
@@ -22,14 +26,13 @@ const selection = ref<ElementSelection | null>(null)
 const ready = computed(() => store.ready)
 const activeCanvas = computed(() => activeFace.value === 'front' ? frontCanvas.value : backCanvas.value)
 
-onMounted(() => store.restore())
+onMounted(async () => { await Promise.all([store.restore(String(route.params.id)), profileStore.restore()]); if(store.project.profileId===profileStore.profile.id){store.project.profileSlug=profileStore.profile.slug;store.project.profilePublished=profileStore.profile.published;store.syncDestination()} })
 function updateField(key: keyof CardFields, value: string) { store.project.fields[key] = value; void store.save() }
 async function updateDesign(key: keyof DesignSettings, value: string) { if (key === 'font') await loadFont(value); (store.project.design[key] as string) = value; void store.save() }
 function canvasChanged(face: Face, snapshot: CanvasSnapshot, dataUrl: string) { textures.value[face] = dataUrl; store.updateFace(face, snapshot) }
 async function switchFace(face: Face) { activeFace.value = face; await nextTick(); previewRef.value?.face(face) }
 async function addLogo(file: File) {
-  const dataUrl = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file) })
-  store.project.assets.logoDataUrl = dataUrl; await store.save(); mobileTab.value = 'design'; await nextTick(); await frontCanvas.value?.rebuild(); await backCanvas.value?.rebuild()
+  store.project.assets.logoDataUrl = await store.uploadAsset(file); await store.save(); mobileTab.value = 'design'; await nextTick(); await frontCanvas.value?.rebuild(); await backCanvas.value?.rebuild()
 }
 async function applyPalette(index: number) {
   const palette = getTemplate(store.project.templateId).palettes[index]!
@@ -46,14 +49,20 @@ function inspectorAction(action: string) {
   else activeCanvas.value?.arrange(action as 'forward' | 'backward' | 'front' | 'back')
 }
 function download(data: string, name: string) { const a = document.createElement('a'); a.href = data; a.download = name; a.click() }
-function exportPng() { download(activeCanvas.value?.exportData(1) ?? '', `business-card-${activeFace.value}.png`) }
+function confirmDestination(){const warning=destinationWarning(store.project);return !warning||confirm(`${warning} Export it anyway? The QR/NFC experience will not be ready.`)}
+function exportPng() { if(!confirmDestination())return;download(activeCanvas.value?.exportData(1) ?? '', `business-card-${activeFace.value}.png`) }
 function exportPdf() {
+  if (!confirmDestination()) return
   const front = frontCanvas.value?.exportData(1); const back = backCanvas.value?.exportData(1)
   if (!front || !back) return
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'in', format: [3.5, 2] })
   pdf.addImage(front, 'PNG', 0, 0, 3.5, 2); pdf.addPage([3.5, 2], 'landscape'); pdf.addImage(back, 'PNG', 0, 0, 3.5, 2); pdf.save('business-card.pdf')
 }
 async function reset() { if (!confirm('Start over? This will replace your locally saved design.')) return; await store.reset(); await nextTick(); frontCanvas.value?.rebuild(); backCanvas.value?.rebuild() }
+async function attachCurrentProfile(){await store.attachProfile({id:profileStore.profile.id,slug:profileStore.profile.slug,published:profileStore.profile.published});await frontCanvas.value?.refreshQr();await backCanvas.value?.refreshQr()}
+async function destinationMode(mode:'profile'|'custom'){store.project.destinationMode=mode;store.syncDestination();await store.save();await frontCanvas.value?.refreshQr();await backCanvas.value?.refreshQr()}
+async function customDestination(value:string){store.project.customDestination=value;store.syncDestination();await store.save();await frontCanvas.value?.refreshQr();await backCanvas.value?.refreshQr()}
+function createProfile(){router.push({path:'/profiles/new',query:{cardId:store.project.id}})}
 </script>
 
 <template>
@@ -64,7 +73,7 @@ async function reset() { if (!confirm('Start over? This will replace your locall
       <div class="top-actions"><button class="ghost" @click="reset">Start over</button><button class="primary" @click="exportPdf">Export PDF</button></div>
     </header>
     <main v-if="ready" class="workspace" :class="{ 'inspector-open': selection }" :data-mobile-tab="mobileTab">
-      <FieldPanel class="details-pane" :fields="store.project.fields" :design="store.project.design" :active-face="activeFace" :template-id="store.project.templateId" :palette-index="store.project.paletteIndex" :qr="store.project.qr" @change="updateField" @design="updateDesign" @logo="addLogo" @palette="applyPalette" @qr="updateQr" />
+      <FieldPanel class="details-pane" :fields="store.project.fields" :design="store.project.design" :active-face="activeFace" :template-id="store.project.templateId" :palette-index="store.project.paletteIndex" :qr="store.project.qr" :card="store.project" :available-profile="profileStore.profile" @change="updateField" @design="updateDesign" @logo="addLogo" @palette="applyPalette" @qr="updateQr" @attach-profile="attachCurrentProfile" @detach-profile="store.detachProfile" @create-profile="createProfile" @destination-mode="destinationMode" @custom-destination="customDestination" />
       <section class="editor-area">
         <div class="editor-topline">
           <div class="face-tabs"><button :class="{ active: activeFace === 'front' }" @click="switchFace('front')">Front</button><button :class="{ active: activeFace === 'back' }" @click="switchFace('back')">Back</button></div>

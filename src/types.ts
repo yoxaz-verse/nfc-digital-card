@@ -4,9 +4,13 @@ export type HeaderLayout = 'classic'|'hero'|'banner'|'cutout'|'shape'
 export type WallpaperType = 'solid'|'gradient'|'image'
 export type ButtonStyle = 'filled'|'outline'|'soft'
 export type ButtonShape = 'square'|'rounded'|'pill'
-export interface ProfileLink { id:string; platform:PlatformType; label:string; url:string; enabled:boolean; order:number }
+export interface ProfileLink { id:string; platform:PlatformType; label:string; url:string; enabled:boolean; order:number; featured:boolean; thumbnailUrl?:string; startsAt?:string; endsAt?:string; clicks?:number }
 export interface ProfileTheme { headerLayout:HeaderLayout; wallpaperType:WallpaperType; background:string; backgroundEnd:string; wallpaperImage?:string; textColor:string; accent:string; font:string; buttonColor:string; buttonTextColor:string; buttonStyle:ButtonStyle; buttonShape:ButtonShape; buttonShadow:boolean }
-export interface Profile { id:string; ownerId?:string; slug:string; goal:ProfileGoal; displayName:string; title:string; bio:string; imageAlt:string; imageUrl?:string; links:ProfileLink[]; theme:ProfileTheme; published:boolean; updatedAt:string; publishedAt?:string; previousSlugs:string[] }
+export interface ContactConfig { enabled:boolean; email:string; heading:string }
+export interface SeoSettings { title:string; description:string }
+export interface Profile { id:string; ownerId?:string; slug:string; goal:ProfileGoal; displayName:string; title:string; bio:string; imageAlt:string; imageUrl?:string; email?:string; phone?:string; location?:string; timezone:string; contact:ContactConfig; seo:SeoSettings; links:ProfileLink[]; theme:ProfileTheme; published:boolean; updatedAt:string; publishedAt?:string; previousSlugs:string[] }
+export interface DailyAnalytics { date:string; views:number; clicks:number }
+export interface ContactSubmission { id:string; profileId:string; name:string; email:string; message:string; status:'unread'|'read'|'archived'; createdAt:string }
 export interface OnboardingState { step:number; selectedPlatforms:PlatformType[]; complete:boolean }
 
 export type Face = 'front' | 'back'
@@ -81,8 +85,9 @@ export interface CanvasSnapshot {
 }
 
 export interface CardProject {
-  version: 2
+  version: 3
   id: string
+  ownerId?: string
   name: string
   fields: CardFields
   design: DesignSettings
@@ -90,6 +95,12 @@ export interface CardProject {
   paletteIndex: number
   assets: BrandAssets
   qr: QrSettings
+  profileId?: string
+  profileSlug?: string
+  profilePublished?: boolean
+  destinationMode: 'profile' | 'custom'
+  customDestination?: string
+  nfcDestination: string
   canvases: Partial<Record<Face, CanvasSnapshot>>
   updatedAt: string
 }

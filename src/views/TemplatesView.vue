@@ -26,10 +26,9 @@ const monogramInitials = computed(() => {
 
 onMounted(() => store.restore())
 async function choose(template: TemplateDefinition) {
-  const hasDesign = Boolean(store.project.canvases.front || store.project.canvases.back)
-  if (hasDesign && store.project.templateId !== template.id && !confirm('Change template? Your details, logo and QR settings will stay, but manually arranged elements will be replaced.')) return
-  if (store.project.templateId !== template.id || !hasDesign) await store.selectTemplate(template.id)
-  await router.push('/editor')
+  const card = await store.create()
+  await store.selectTemplate(template.id)
+  await router.push(`/cards/${card.id}/edit`)
 }
 </script>
 
@@ -37,7 +36,7 @@ async function choose(template: TemplateDefinition) {
   <div class="template-page">
     <header class="template-nav">
       <RouterLink class="brand" to="/"><span class="brand-mark">C</span><span>Card Studio <small>3D</small></span></RouterLink>
-      <RouterLink class="back-link" to="/">← Back home</RouterLink>
+      <RouterLink class="back-link" to="/dashboard">← Workspace</RouterLink>
     </header>
     <main class="template-main">
       <div class="template-intro">

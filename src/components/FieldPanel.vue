@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import type { CardFields, DesignSettings, QrSettings } from '../types'
+import type { CardFields, DesignSettings, QrSettings, CardProject, Profile } from '../types'
 import { getTemplate } from '../templates'
 import FontPicker from './FontPicker.vue'
 
-const props = defineProps<{ fields: CardFields; design: DesignSettings; activeFace: 'front' | 'back'; templateId: string; paletteIndex: number; qr: QrSettings }>()
-const emit = defineEmits<{ change: [key: keyof CardFields, value: string]; design: [key: keyof DesignSettings, value: string]; logo: [file: File]; palette: [index: number]; qr: [key: keyof QrSettings, value: string | boolean] }>()
+const props = defineProps<{ fields: CardFields; design: DesignSettings; activeFace: 'front' | 'back'; templateId: string; paletteIndex: number; qr: QrSettings; card:CardProject; availableProfile:Profile }>()
+const emit = defineEmits<{ change: [key: keyof CardFields, value: string]; design: [key: keyof DesignSettings, value: string]; logo: [file: File]; palette: [index: number]; qr: [key: keyof QrSettings, value: string | boolean]; attachProfile:[]; detachProfile:[]; createProfile:[]; destinationMode:[mode:'profile'|'custom']; customDestination:[value:string] }>()
 const template = computed(() => getTemplate(props.templateId))
 
 const items: { key: keyof CardFields; label: string; face: 'front' | 'back' }[] = [
@@ -64,11 +64,14 @@ function upload(event: Event) {
         <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" @change="upload" />
         <span>＋ Add logo or image</span>
       </label>
-      <div class="field-divider"><span>NFC destination</span></div>
-      <label class="qr-url">
-        <span>Profile or website URL</span>
-        <input type="url" :value="qr.destination" placeholder="https://your-profile.com" @input="emit('qr', 'destination', ($event.target as HTMLInputElement).value)" />
-      </label>
+      <div class="field-divider"><span>Digital destination</span></div>
+      <div class="profile-attachment">
+        <template v-if="card.profileId"><div class="attachment-status"><i :class="{live:card.profilePublished}">●</i><div><b>{{availableProfile.displayName}}</b><span>{{card.profilePublished?'Published profile':'Profile is still a draft'}}</span></div></div><code>/u/{{card.profileSlug}}</code><div class="attachment-actions"><RouterLink :to="`/profiles/${card.profileId}/edit`">Edit profile</RouterLink><button @click="emit('detachProfile')">Detach</button></div></template>
+        <template v-else><b>Connect a digital profile</b><p>The profile is what people see after scanning the QR or tapping the NFC card.</p><button v-if="availableProfile.published" class="attach-button" @click="emit('attachProfile')">Attach {{availableProfile.displayName}}</button><button class="create-profile-button" @click="emit('createProfile')">＋ Create profile from this card</button></template>
+      </div>
+      <label class="destination-choice"><span>Destination type</span><select :value="card.destinationMode" @change="emit('destinationMode',($event.target as HTMLSelectElement).value as 'profile'|'custom')"><option value="profile">Attached profile</option><option value="custom">Custom external URL</option></select></label>
+      <label v-if="card.destinationMode==='custom'" class="qr-url"><span>Custom URL</span><input type="url" :value="card.customDestination" placeholder="https://your-site.com" @change="emit('customDestination',($event.target as HTMLInputElement).value)" /></label>
+      <div class="destination-preview"><span>QR + NFC destination</span><code>{{card.nfcDestination||'Not connected yet'}}</code></div>
       <label class="toggle-row"><span>Show QR code</span><input type="checkbox" :checked="qr.enabled" @change="emit('qr', 'enabled', ($event.target as HTMLInputElement).checked)" /></label>
       <label v-if="qr.enabled">
         <span>QR face</span>

@@ -12,7 +12,7 @@ export const defaultFields = (): CardFields => ({
 })
 
 export const newProject = (): CardProject => ({
-  version: 2,
+  version: 3,
   id: crypto.randomUUID(),
   name: 'Untitled business card',
   fields: defaultFields(),
@@ -25,7 +25,9 @@ export const newProject = (): CardProject => ({
   templateId: 'executive-line',
   paletteIndex: 0,
   assets: {},
-  qr: { enabled: false, destination: 'https://cardstudio.app/u/arjun-menon', face: 'back', color: '#181817' },
+  qr: { enabled: true, destination: '', face: 'back', color: '#181817' },
+  destinationMode: 'profile',
+  nfcDestination: '',
   canvases: {},
   updatedAt: new Date().toISOString(),
 })
