@@ -1,1 +1,1 @@
-{"root":["./src/defaults.ts","./src/main.ts","./src/types.ts","./src/stores/project.ts","./src/app.vue","./src/components/cardcanvas.vue","./src/components/fieldpanel.vue","./src/components/threepreview.vue"],"version":"5.9.3"}
+{"root":["./src/defaults.ts","./src/main.ts","./src/templates.ts","./src/types.ts","./src/stores/project.ts","./src/app.vue","./src/components/cardcanvas.vue","./src/components/fieldpanel.vue","./src/components/threepreview.vue","./src/views/editorview.vue","./src/views/homeview.vue","./src/views/templatesview.vue"],"version":"5.9.3"}

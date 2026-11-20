@@ -12,10 +12,20 @@ export const defaultFields = (): CardFields => ({
 })
 
 export const newProject = (): CardProject => ({
-  version: 1,
+  version: 2,
   id: crypto.randomUUID(),
   name: 'Untitled business card',
   fields: defaultFields(),
+  design: {
+    font: 'Arial',
+    frontBackground: '#fdfcf9',
+    backBackground: '#181817',
+    layout: 'classic',
+  },
+  templateId: 'executive-line',
+  paletteIndex: 0,
+  assets: {},
+  qr: { enabled: false, destination: 'https://example.com/alex', face: 'back', color: '#181817' },
   canvases: {},
   updatedAt: new Date().toISOString(),
 })

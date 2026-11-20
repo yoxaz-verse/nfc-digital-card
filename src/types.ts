@@ -1,4 +1,5 @@
 export type Face = 'front' | 'back'
+export type TemplateCategory = 'Professional' | 'Minimal' | 'Bold' | 'Luxury' | 'Creative' | 'Tech' | 'Dark' | 'Gradient' | 'Photo' | 'QR'
 
 export interface CardFields {
   name: string
@@ -11,6 +12,25 @@ export interface CardFields {
   accent: string
 }
 
+export interface DesignSettings {
+  font: 'Arial' | 'Georgia' | 'Courier New'
+  frontBackground: string
+  backBackground: string
+  layout: 'classic' | 'minimal' | 'bold'
+}
+
+export interface TemplatePalette { name: string; front: string; back: string; accent: string; foreground: string }
+export interface TemplateDefinition {
+  id: string
+  name: string
+  category: TemplateCategory
+  description: string
+  style: 'line' | 'minimal' | 'bold' | 'luxury' | 'split' | 'grid' | 'gradient' | 'photo' | 'monogram' | 'qr' | 'editorial' | 'neon'
+  palettes: TemplatePalette[]
+}
+export interface BrandAssets { logoDataUrl?: string; photoDataUrl?: string }
+export interface QrSettings { enabled: boolean; destination: string; face: Face; color: string }
+
 export interface CanvasSnapshot {
   version: '1.0'
   objects: unknown[]
@@ -18,10 +38,15 @@ export interface CanvasSnapshot {
 }
 
 export interface CardProject {
-  version: 1
+  version: 2
   id: string
   name: string
   fields: CardFields
+  design: DesignSettings
+  templateId: string
+  paletteIndex: number
+  assets: BrandAssets
+  qr: QrSettings
   canvases: Partial<Record<Face, CanvasSnapshot>>
   updatedAt: string
 }
