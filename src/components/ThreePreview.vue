@@ -3,7 +3,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
-const props = defineProps<{ front?: string; back?: string }>()
+const props = defineProps<{ front?: string; back?: string; edgeColor?: string }>()
 const mount = ref<HTMLDivElement>()
 let renderer: THREE.WebGLRenderer | undefined
 let scene: THREE.Scene
@@ -18,7 +18,7 @@ const selectedFace = ref<'front' | 'back' | null>(null)
 const loader = new THREE.TextureLoader()
 
 function material(url: string | undefined, fallback: number) {
-  const map = url ? loader.load(url, (texture) => renderer?.render(scene, camera)) : undefined
+  const map = url ? loader.load(url, () => renderer?.render(scene, camera)) : undefined
   if (map) {
     map.colorSpace = THREE.SRGBColorSpace
     map.anisotropy = Math.min(renderer?.capabilities.getMaxAnisotropy() ?? 1, 8)
@@ -35,10 +35,34 @@ function material(url: string | undefined, fallback: number) {
   })
 }
 
+function edgeMaterial(colorHex?: string) {
+  let color = 0x242220
+  if (colorHex) {
+    try {
+      color = new THREE.Color(colorHex).getHex()
+    } catch {
+      color = 0x242220
+    }
+  }
+  return new THREE.MeshPhysicalMaterial({
+    color,
+    roughness: 0.7,
+    metalness: 0.05,
+    clearcoat: 0.05,
+  })
+}
+
 function updateMaterials() {
   if (!card) return
-  const mats = card.material as THREE.MeshStandardMaterial[]
-  mats[4]?.map?.dispose(); mats[5]?.map?.dispose(); mats[4]?.dispose(); mats[5]?.dispose()
+  const mats = card.material as THREE.MeshPhysicalMaterial[]
+  for (let i = 0; i < 4; i++) {
+    mats[i]?.dispose()
+    mats[i] = edgeMaterial(props.edgeColor)
+  }
+  mats[4]?.map?.dispose()
+  mats[5]?.map?.dispose()
+  mats[4]?.dispose()
+  mats[5]?.dispose()
   mats[4] = material(props.front, 0xffffff)
   mats[5] = material(props.back, 0x191919)
   card.material = mats
@@ -75,8 +99,8 @@ onMounted(() => {
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
   mount.value.appendChild(renderer.domElement)
-  const geometry = new THREE.BoxGeometry(4.2, 2.4, 0.09, 2, 2, 1)
-  const edge = new THREE.MeshPhysicalMaterial({ color: 0xe8e5dc, roughness: 0.82, metalness: 0, clearcoat: 0.04 })
+  const geometry = new THREE.BoxGeometry(4.2, 2.4, 0.024, 2, 2, 1)
+  const edge = edgeMaterial(props.edgeColor)
   card = new THREE.Mesh(geometry, [edge, edge, edge, edge, material(props.front, 0xffffff), material(props.back, 0x191919)])
   card.castShadow = true
   card.rotation.set(0.12, -0.35, -0.03)
@@ -111,7 +135,7 @@ onMounted(() => {
   disconnectObserver = () => observer.disconnect()
 })
 
-watch(() => [props.front, props.back], updateMaterials)
+watch(() => [props.front, props.back, props.edgeColor], updateMaterials)
 onBeforeUnmount(() => { cancelAnimationFrame(frame); disconnectObserver?.(); renderer?.dispose(); card?.geometry.dispose() })
 defineExpose({ face, toggleRotate })
 </script>

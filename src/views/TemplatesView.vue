@@ -12,6 +12,18 @@ const search = ref('')
 const categories: ('All' | TemplateCategory)[] = ['All', 'Professional', 'Minimal', 'Bold', 'Luxury', 'Creative', 'Tech', 'Dark', 'Gradient', 'Photo', 'QR']
 const filtered = computed(() => templates.filter((item) => (activeCategory.value === 'All' || item.category === activeCategory.value) && `${item.name} ${item.category}`.toLowerCase().includes(search.value.toLowerCase())))
 
+const displayName = computed(() => store.project.fields.name || 'Arjun Menon')
+const displayTitle = computed(() => store.project.fields.title || 'Creative Director')
+const displayCompany = computed(() => store.project.fields.company || 'MALABAR TECH')
+const displayEmail = computed(() => store.project.fields.email || 'arjun@malabartech.in')
+const displayPhone = computed(() => store.project.fields.phone || '+91 98470 23456')
+const monogramInitials = computed(() => {
+  const parts = displayName.value.trim().split(/\s+/).filter(Boolean)
+  const first = parts[0]?.[0] ?? ''
+  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : (parts[0]?.[1] ?? '')
+  return (first + last).toUpperCase() || 'AM'
+})
+
 onMounted(() => store.restore())
 async function choose(template: TemplateDefinition) {
   const hasDesign = Boolean(store.project.canvases.front || store.project.canvases.back)
@@ -40,8 +52,8 @@ async function choose(template: TemplateDefinition) {
       <div class="template-grid">
         <article v-for="template in filtered" :key="template.id" class="template-card" :class="`style-${template.style}`" @click="choose(template)">
           <div class="template-preview" :style="{ '--front': template.palettes[0]!.front, '--back': template.palettes[0]!.back, '--accent': template.palettes[0]!.accent, '--ink': template.palettes[0]!.foreground }">
-            <div class="mini-card mini-front"><i></i><b>{{ template.style === 'monogram' ? 'AM' : 'Alex Morgan' }}</b><small>Creative Director</small><em>NORTH & CO.</em></div>
-            <div class="mini-card mini-back"><span>alex@northandco.com</span><span>+1 555 014 2089</span><q v-if="template.style === 'qr'">▦</q></div>
+            <div class="mini-card mini-front"><i></i><b>{{ template.style === 'monogram' ? monogramInitials : displayName }}</b><small>{{ displayTitle }}</small><em>{{ displayCompany }}</em></div>
+            <div class="mini-card mini-back"><span>{{ displayEmail }}</span><span>{{ displayPhone }}</span><q v-if="template.style === 'qr'">▦</q></div>
           </div>
           <div class="template-meta"><div><span>{{ template.category }}</span><h2>{{ template.name }}</h2><p>{{ template.description }}</p></div><button aria-label="Use template">→</button></div>
         </article>

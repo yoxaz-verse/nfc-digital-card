@@ -14,16 +14,29 @@ export const useProjectStore = defineStore('project', {
         const saved = await get<Omit<CardProject, 'version'> & { version: number }>(STORAGE_KEY)
         if (saved && (saved.version === 1 || saved.version === 2)) {
           const defaults = newProject()
+          const fields = { ...defaults.fields, ...saved.fields }
+
+          // Migrate legacy placeholder defaults if unchanged by user
+          if (fields.name === 'Alex Morgan') fields.name = defaults.fields.name
+          if (fields.email === 'alex@northandco.com') fields.email = defaults.fields.email
+          if (fields.company === 'NORTH & CO.') fields.company = defaults.fields.company
+          if (fields.address === '28 Mercer Street · New York') fields.address = defaults.fields.address
+          if (fields.phone === '+1 555 014 2089') fields.phone = defaults.fields.phone
+          if (fields.website === 'northandco.com') fields.website = defaults.fields.website
+
+          const qr = { ...defaults.qr, ...(saved.qr ?? {}) }
+          if (qr.destination === 'https://example.com/alex') qr.destination = defaults.qr.destination
+
           this.project = {
             ...defaults,
             ...saved,
-            fields: { ...defaults.fields, ...saved.fields },
+            fields,
             design: { ...defaults.design, ...(saved.design ?? {}) },
             version: 2,
             templateId: saved.templateId ?? 'executive-line',
             paletteIndex: saved.paletteIndex ?? 0,
             assets: { ...defaults.assets, ...(saved.assets ?? {}) },
-            qr: { ...defaults.qr, ...(saved.qr ?? {}) },
+            qr,
           }
         }
       } finally {

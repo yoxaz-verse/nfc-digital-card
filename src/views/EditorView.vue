@@ -75,7 +75,7 @@ async function reset() { if (!confirm('Start over? This will replace your locall
             <CardCanvas v-show="activeFace === 'front'" ref="frontCanvas" face="front" :fields="store.project.fields" :design="store.project.design" :template-id="store.project.templateId" :assets="store.project.assets" :qr="store.project.qr" :snapshot="store.project.canvases.front" @change="(s, u) => canvasChanged('front', s, u)" @selection="selection = $event" />
             <CardCanvas v-show="activeFace === 'back'" ref="backCanvas" face="back" :fields="store.project.fields" :design="store.project.design" :template-id="store.project.templateId" :assets="store.project.assets" :qr="store.project.qr" :snapshot="store.project.canvases.back" @change="(s, u) => canvasChanged('back', s, u)" @selection="selection = $event" />
           </div>
-          <ThreePreview :class="{ 'stage-hidden': mobileTab !== 'preview' }" ref="previewRef" :front="textures.front" :back="textures.back" />
+          <ThreePreview :class="{ 'stage-hidden': mobileTab !== 'preview' }" ref="previewRef" :front="textures.front" :back="textures.back" :edge-color="store.project.design.backBackground" />
         </div>
         <div class="toolbar">
           <button @click="activeCanvas?.undo()">↶ <span>Undo</span></button><button @click="activeCanvas?.redo()">↷ <span>Redo</span></button><i></i>

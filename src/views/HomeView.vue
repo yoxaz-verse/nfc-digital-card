@@ -22,7 +22,7 @@ import { RouterLink } from 'vue-router'
         </div>
         <div class="hero-art" aria-label="A 3D business card preview">
           <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
-          <div class="demo-card"><span class="demo-company">NORTH & CO.</span><div><strong>Alex Morgan</strong><small>Creative Director</small></div><i></i></div>
+          <div class="demo-card"><span class="demo-company">MALABAR TECH</span><div><strong>Arjun Menon</strong><small>Creative Director</small></div><i></i></div>
           <div class="float-pill pill-front">✦ Live 3D preview</div><div class="float-pill pill-back">↔ Front & back</div>
         </div>
       </section>
